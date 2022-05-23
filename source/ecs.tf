@@ -86,9 +86,28 @@ resource "aws_ecs_service" "main" {
   launch_type     = "FARGATE"
   depends_on      = [data.aws_iam_policy.efs_task_exec_policy]
   tags            = var.tags
+
   network_configuration {
     security_groups  = [aws_security_group.teamcity.id]
     subnets          = [aws_subnet.public.id]
     assign_public_ip = true
   }
+
+  load_balancer {
+    target_group_arn = aws_lb_target_group.teamcity_server.arn
+    container_name  = "${var.name}-def"
+    container_port  = 8111
+  }
+
+  # Allow external changes without Terraform plan difference
+  lifecycle {
+    ignore_changes = [desired_count]
+  }
+}
+
+resource "aws_lb_target_group" "teamcity_server" {
+  name   = "teamcity-lb-tg"
+  port   = 80
+  protocol = "HTTP"
+  vpcid = aws_vpc.main.id
 }
